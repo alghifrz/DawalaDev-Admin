@@ -1,12 +1,12 @@
 import { PrismaClient } from '@prisma/client'
 
-declare global {
-  var __prisma: PrismaClient | undefined
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
 }
 
 const createPrismaClient = () => {
   return new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    log: ['error'],
     datasources: {
       db: {
         url: process.env.DATABASE_URL,
@@ -15,60 +15,88 @@ const createPrismaClient = () => {
   })
 }
 
-export const prisma = globalThis.__prisma || createPrismaClient()
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__prisma = prisma
-}
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
-// Graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect()
+// Add robust middleware for prepared statement errors
+prisma.$use(async (params, next) => {
+  try {
+    return await next(params)
+  } catch (error: any) {
+    // Check for prepared statement errors
+    if (error?.message?.includes('prepared statement') ||
+        error?.code === '42P05' ||
+        error?.code === '26000') {
+      
+      console.log('Prepared statement error detected, attempting recovery...')
+      
+      try {
+        // Force disconnect and reconnect
+        await prisma.$disconnect()
+        
+        // Wait a bit for cleanup
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Reconnect
+        await prisma.$connect()
+        
+        console.log('Recovery successful, retrying query...')
+        
+        // Retry the query
+        return await next(params)
+      } catch (recoveryError) {
+        console.error('Recovery failed:', recoveryError)
+        throw error
+      }
+    }
+    
+    throw error
+  }
 })
 
-// Handle connection issues with retry logic
-prisma.$use(async (params, next) => {
-  const maxRetries = 3
-  let retries = 0
+// Add retry logic for prepared statement errors
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  let lastError: any
 
-  while (retries < maxRetries) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await next(params)
+      return await operation()
     } catch (error: any) {
-      retries++
+      lastError = error
       
-      // Check for connection issues
-      if (error?.code === 'P2025' || 
-          error?.message?.includes('Engine is not yet connected') ||
-          error?.message?.includes('prepared statement') ||
-          error?.message?.includes('already exists') ||
-          error?.message?.includes('does not exist') ||
+      // Check if it's a prepared statement error
+      if (error?.message?.includes('prepared statement') ||
           error?.code === '42P05' ||
           error?.code === '26000') {
         
-        console.log(`Database connection issue detected (attempt ${retries}/${maxRetries}), attempting to reconnect...`)
+        console.log(`Prepared statement error on attempt ${attempt}, retrying...`)
         
-        try {
-          // Force disconnect and reconnect
-          await prisma.$disconnect()
-          await new Promise(resolve => setTimeout(resolve, 1000 * retries)) // Exponential backoff
-          await prisma.$connect()
-          
-          // Try the query again
-          continue
-        } catch (reconnectError) {
-          console.error('Failed to reconnect to database:', reconnectError)
-          if (retries === maxRetries) {
-            throw error
-          }
+        if (attempt < maxRetries) {
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
           continue
         }
       }
       
-      // If it's not a connection issue, throw immediately
+      // For other errors or max retries reached, throw immediately
       throw error
     }
   }
   
-  throw new Error('Max retries exceeded')
+  throw lastError
+}
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await prisma.$disconnect()
+  process.exit(0)
+})
+
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect()
+  process.exit(0)
 }) 

@@ -1,112 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { prisma, withRetry } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, name, authProvider } = await request.json()
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!email || !name || !authProvider) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { email, name, authProvider } = await request.json()
 
     console.log('Creating pending user:', { email, name, authProvider })
 
-    // Check if user already exists in users table
     let existingUser = null
     try {
-      // Disconnect first to clear any existing connections
-      try {
-        await prisma.$disconnect()
-      } catch (disconnectError) {
-        console.log('Error disconnecting (expected):', disconnectError)
-      }
-
-      await prisma.$connect()
-      
-      existingUser = await prisma.user.findUnique({
-        where: { email },
-      })
-      
-      await prisma.$disconnect()
+      existingUser = await withRetry(() => 
+        prisma.user.findUnique({
+          where: { email },
+        })
+      )
     } catch (dbError) {
       console.error('Database error checking existing user:', dbError)
-      try {
-        await prisma.$disconnect()
-      } catch (disconnectError) {
-        console.error('Error disconnecting:', disconnectError)
-      }
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Database temporarily unavailable. Please try again later.' },
+        { status: 500 }
+      )
     }
 
     if (existingUser) {
-      console.log('User already exists in users table:', existingUser.email)
-      return NextResponse.json({ 
-        error: 'User already exists',
-        user: existingUser 
-      }, { status: 409 })
+      return NextResponse.json(
+        { error: 'User already exists' },
+        { status: 400 }
+      )
     }
 
-    // Check if user already exists in pending_users table
-    let existingPendingUser = null
+    let pendingUser = null
     try {
-      await prisma.$connect()
-      
-      existingPendingUser = await prisma.pendingUser.findUnique({
-        where: { email },
-      })
-      
-      await prisma.$disconnect()
-    } catch (dbError) {
-      console.error('Database error checking existing pending user:', dbError)
-      try {
-        await prisma.$disconnect()
-      } catch (disconnectError) {
-        console.error('Error disconnecting:', disconnectError)
-      }
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
-    }
-
-    if (existingPendingUser) {
-      console.log('User already exists in pending_users table:', existingPendingUser.email)
-      return NextResponse.json({ 
-        error: 'User already pending approval',
-        pendingUser: existingPendingUser 
-      }, { status: 409 })
-    }
-
-    // Create new pending user
-    let newPendingUser = null
-    try {
-      await prisma.$connect()
-      
-      newPendingUser = await prisma.pendingUser.create({
-        data: {
-          email,
-          name,
-          authProvider,
-        },
-      })
-      
-      await prisma.$disconnect()
+      pendingUser = await withRetry(() => 
+        prisma.pendingUser.create({
+          data: {
+            email,
+            name,
+            authProvider,
+          },
+        })
+      )
     } catch (dbError) {
       console.error('Database error creating pending user:', dbError)
-      try {
-        await prisma.$disconnect()
-      } catch (disconnectError) {
-        console.error('Error disconnecting:', disconnectError)
-      }
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Database temporarily unavailable. Please try again later.' },
+        { status: 500 }
+      )
     }
 
-    console.log('Successfully created pending user:', newPendingUser.email)
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: 'Pending user created successfully',
-      pendingUser: newPendingUser 
+      user: pendingUser,
     })
-
   } catch (error) {
     console.error('Error creating pending user:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 } 

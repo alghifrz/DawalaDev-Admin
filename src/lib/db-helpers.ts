@@ -1,151 +1,159 @@
 import { prisma } from './prisma'
 
-// Simple user query with retry logic
-export async function safeUserQuery(userId: string) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
+export async function safeDbOperation<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Try to connect first
-      await prisma.$connect()
-      
-      // Wait a bit to ensure connection is stable
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      const result = await prisma.user.findUnique({
-        where: { id: userId },
-      })
-      
-      return result
+      return await operation()
     } catch (error) {
-      console.error(`Attempt ${attempt} failed for safeUserQuery:`, error)
-      
-      // Try to disconnect and reconnect
-      try {
-        await prisma.$disconnect()
-      } catch (disconnectError) {
-        console.error('Error disconnecting:', disconnectError)
+      lastError = error as Error
+      console.error(`Database operation failed (attempt ${attempt}/${maxRetries}):`, error)
+
+      // Check if it's a connection-related error
+      const isConnectionError = 
+        error instanceof Error && (
+          error.message.includes('prepared statement') ||
+          error.message.includes('bind message supplies') ||
+          error.message.includes('08P01') ||
+          error.message.includes('connection') ||
+          error.message.includes('timeout')
+        )
+
+      if (isConnectionError && attempt < maxRetries) {
+        console.log(`Attempting to reconnect (attempt ${attempt}/${maxRetries})...`)
+        try {
+          await prisma.$disconnect()
+          await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second
+          await prisma.$connect()
+          console.log('Reconnected successfully')
+        } catch (reconnectError) {
+          console.error('Failed to reconnect:', reconnectError)
+        }
+      } else if (attempt < maxRetries) {
+        // For non-connection errors, wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
       }
-      
-      if (attempt === 3) {
-        console.error('All attempts failed for safeUserQuery')
-        return null
-      }
-      
-      // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, 1000))
     }
   }
-  return null
+
+  throw lastError
 }
 
-// Simple pending user query
-export async function safePendingUserQuery(email: string) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      // Try to connect first
-      await prisma.$connect()
-      
-      // Wait a bit to ensure connection is stable
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      const result = await prisma.pendingUser.findUnique({
-        where: { email },
-      })
-      
-      return result
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed for safePendingUserQuery:`, error)
-      
-      // Try to disconnect and reconnect
-      try {
-        await prisma.$disconnect()
-      } catch (disconnectError) {
-        console.error('Error disconnecting:', disconnectError)
+// Raw SQL queries to avoid prepared statements
+export async function findUserByEmail(email: string) {
+  return safeDbOperation(async () => {
+    const result = await prisma.$queryRaw`
+      SELECT * FROM users WHERE email = ${email} LIMIT 1
+    `
+    return Array.isArray(result) ? result[0] : null
+  })
+}
+
+export async function findUserById(id: string) {
+  return safeDbOperation(async () => {
+    const result = await prisma.$queryRaw`
+      SELECT * FROM users WHERE id = ${id} LIMIT 1
+    `
+    return Array.isArray(result) ? result[0] : null
+  })
+}
+
+export async function countUsers() {
+  return safeDbOperation(async () => {
+    const result = await prisma.$queryRaw`
+      SELECT COUNT(*) as count FROM users WHERE role = 'SUPER_ADMIN'
+    `
+    return Array.isArray(result) ? Number(result[0]?.count) : 0
+  })
+}
+
+export async function countMakanan() {
+  return safeDbOperation(async () => {
+    const result = await prisma.$queryRaw`
+      SELECT COUNT(*) as count FROM makanan
+    `
+    return Array.isArray(result) ? Number(result[0]?.count) : 0
+  })
+}
+
+export async function countJenisPaket() {
+  return safeDbOperation(async () => {
+    const result = await prisma.$queryRaw`
+      SELECT COUNT(*) as count FROM jenis_paket
+    `
+    return Array.isArray(result) ? Number(result[0]?.count) : 0
+  })
+}
+
+export async function findMakananById(id: number) {
+  return safeDbOperation(async () => {
+    const result = await prisma.$queryRaw`
+      SELECT m.*, jp.nama_paket as "jenisPaketNama"
+      FROM makanan m
+      LEFT JOIN jenis_paket jp ON m.jenis_paket_id = jp.id
+      WHERE m.id = ${id}
+      LIMIT 1
+    `
+    if (Array.isArray(result) && result[0]) {
+      const makanan = result[0] as any
+      return {
+        id: makanan.id,
+        namaMakanan: makanan.nama_makanan,
+        deskripsi: makanan.deskripsi,
+        foto: makanan.foto,
+        harga: makanan.harga,
+        jenisPaketId: makanan.jenis_paket_id,
+        createdAt: makanan.created_at,
+        updatedAt: makanan.updated_at,
+        jenisPaket: {
+          id: makanan.jenis_paket_id,
+          namaPaket: makanan.jenisPaketNama
+        }
       }
-      
-      if (attempt === 3) {
-        console.error('All attempts failed for safePendingUserQuery')
-        return null
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 1000))
     }
-  }
-  return null
+    return null
+  })
 }
 
-// Simple user creation
-export async function safeCreateUser(userData: {
-  id: string
-  email: string
-  role?: string
-  isApproved?: boolean
-}) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await prisma.$connect()
-      return await prisma.user.create({
-        data: {
-          id: userData.id,
-          email: userData.email,
-          role: userData.role || 'ADMIN',
-          isApproved: userData.isApproved ?? false,
-        },
-      })
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed for safeCreateUser:`, error)
-      if (attempt === 3) {
-        console.error('All attempts failed for safeCreateUser')
-        return null
+export async function findMakananAll() {
+  return safeDbOperation(async () => {
+    const result = await prisma.$queryRaw`
+      SELECT m.*, jp.nama_paket as "jenisPaketNama"
+      FROM makanan m
+      LEFT JOIN jenis_paket jp ON m.jenis_paket_id = jp.id
+      ORDER BY m.created_at DESC
+    `
+    return (result as any[]).map(makanan => ({
+      id: makanan.id,
+      namaMakanan: makanan.nama_makanan,
+      deskripsi: makanan.deskripsi,
+      foto: makanan.foto,
+      harga: makanan.harga,
+      jenisPaketId: makanan.jenis_paket_id,
+      createdAt: makanan.created_at,
+      updatedAt: makanan.updated_at,
+      jenisPaket: {
+        id: makanan.jenis_paket_id,
+        namaPaket: makanan.jenisPaketNama
       }
-      await new Promise(resolve => setTimeout(resolve, 1000))
-    }
-  }
-  return null
+    }))
+  })
 }
 
-// Simple user update
-export async function safeUpdateUserToSuperAdmin(userId: string) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await prisma.$connect()
-      return await prisma.user.update({
-        where: { id: userId },
-        data: {
-          role: 'SUPER_ADMIN',
-          isApproved: true,
-        },
-      })
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed for safeUpdateUserToSuperAdmin:`, error)
-      if (attempt === 3) {
-        console.error('All attempts failed for safeUpdateUserToSuperAdmin')
-        return null
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000))
-    }
-  }
-  return null
-}
-
-// Simple count queries with fallbacks
-export async function safePendingAdminCount(): Promise<number> {
-  try {
-    await prisma.$connect()
-    return await prisma.pendingUser.count()
-  } catch (error) {
-    console.error('Error counting pending admins:', error)
-    return 0
-  }
-}
-
-export async function safeSuperAdminCount(): Promise<number> {
-  try {
-    await prisma.$connect()
-    return await prisma.user.count({
-      where: { role: 'SUPER_ADMIN' }
-    })
-  } catch (error) {
-    console.error('Error counting super admins:', error)
-    return 0
-  }
+export async function findJenisPaketAll() {
+  return safeDbOperation(async () => {
+    const result = await prisma.$queryRaw`
+      SELECT * FROM jenis_paket ORDER BY created_at DESC
+    `
+    return (result as any[]).map(jenisPaket => ({
+      id: jenisPaket.id,
+      namaPaket: jenisPaket.nama_paket,
+      createdAt: jenisPaket.created_at,
+      updatedAt: jenisPaket.updated_at
+    }))
+  })
 } 

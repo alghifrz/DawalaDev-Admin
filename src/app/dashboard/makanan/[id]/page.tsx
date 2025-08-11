@@ -9,7 +9,7 @@ import Image from 'next/image'
 export default async function MakananDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   const supabase = await createServerSupabaseClient()
   
@@ -21,8 +21,11 @@ export default async function MakananDetailPage({
     redirect('/auth/login')
   }
 
+  const { id } = await params
+  const makananId = parseInt(id)
+
   const makanan = await prisma.makanan.findUnique({
-    where: { id: parseInt(params.id) },
+    where: { id: makananId },
     include: {
       jenisPaket: true,
     },
@@ -45,16 +48,18 @@ export default async function MakananDetailPage({
           <h1 className="text-3xl font-bold text-gray-900">Detail Makanan</h1>
         </div>
         <div className="flex space-x-2">
-          <Link href={`/dashboard/makanan/${params.id}/edit`}>
+          <Link href={`/dashboard/makanan/${makananId}/edit`}>
             <Button>
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button>
           </Link>
-          <Button variant="destructive">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Hapus
-          </Button>
+          <Link href={`/dashboard/makanan/${makananId}/delete`}>
+            <Button variant="destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Hapus
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -100,7 +105,7 @@ export default async function MakananDetailPage({
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Diupdate:</span>
+                <span className="text-gray-600">Terakhir Diupdate:</span>
                 <span className="font-medium">
                   {new Date(makanan.updatedAt).toLocaleDateString('id-ID')}
                 </span>

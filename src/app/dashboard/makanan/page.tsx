@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
-import { Plus, Edit, Trash2, Eye, Utensils, Package } from 'lucide-react'
+import { Plus, Edit, Trash2, Utensils, Package } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -55,9 +55,9 @@ export default async function MakananPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
         {/* Menu Makanan */}
-        <div>
+        <div className="lg:col-span-7">
           <div className="bg-white rounded-2xl shadow-sm border border-green-200 mb-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-green-100 bg-green-50 rounded-t-2xl">
               <div className="flex items-center gap-2">
@@ -117,11 +117,6 @@ export default async function MakananPage() {
                           Rp {item.harga.toLocaleString()}
                         </td>
                         <td className="px-4 py-2 space-x-1">
-                          <Link href={`/dashboard/makanan/${item.id}`}>
-                            <Button size="sm" variant="outline" className="h-8 w-8 p-0">
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                          </Link>
                           <Link href={`/dashboard/makanan/${item.id}/edit`}>
                             <Button size="sm" variant="outline" className="h-8 w-8 p-0">
                               <Edit className="h-3 w-3" />
@@ -143,7 +138,7 @@ export default async function MakananPage() {
         </div>
 
         {/* Jenis Paket */}
-        <div>
+        <div className="lg:col-span-3">
           <div className="bg-white rounded-2xl shadow-sm border border-blue-200 mb-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-blue-100 bg-blue-50 rounded-t-2xl">
               <div className="flex items-center gap-2">

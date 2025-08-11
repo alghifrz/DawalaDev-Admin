@@ -1,26 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const id = parseInt(params.id)
-    if (isNaN(id)) {
+    const { id } = await params
+    const makananId = parseInt(id)
+    if (isNaN(makananId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     const makanan = await prisma.makanan.findUnique({
-      where: { id },
+      where: { id: makananId },
       include: {
         jenisPaket: true
       }
@@ -30,8 +31,15 @@ export async function GET(
       return NextResponse.json({ error: 'Makanan not found' }, { status: 404 })
     }
 
-    return NextResponse.json(makanan)
+    // Parse foto string to array for frontend compatibility
+    const makananWithParsedFoto = {
+      ...makanan,
+      foto: Array.isArray(makanan.foto) ? makanan.foto : JSON.parse(makanan.foto || '[]')
+    }
+
+    return NextResponse.json(makananWithParsedFoto)
   } catch (error) {
+    console.error('GET /api/makanan/[id] error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -41,18 +49,19 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const id = parseInt(params.id)
-    if (isNaN(id)) {
+    const { id } = await params
+    const makananId = parseInt(id)
+    if (isNaN(makananId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
@@ -65,24 +74,30 @@ export async function PUT(
       )
     }
 
-    // Validate jenis paket exists
-    const jenisPaket = await prisma.jenisPaket.findUnique({
-      where: { id: jenisPaketId }
-    })
-
-    if (!jenisPaket) {
+    // Validate foto is an array
+    if (!Array.isArray(foto) || foto.length === 0) {
       return NextResponse.json(
-        { error: 'Jenis paket not found' },
+        { error: 'Foto must be a non-empty array' },
         { status: 400 }
       )
     }
 
-    const makanan = await prisma.makanan.update({
-      where: { id },
+    // Check if makanan exists
+    const existingMakanan = await prisma.makanan.findUnique({
+      where: { id: makananId }
+    })
+    
+    if (!existingMakanan) {
+      return NextResponse.json({ error: 'Makanan not found' }, { status: 404 })
+    }
+
+    // Update makanan
+    const updatedMakanan = await prisma.makanan.update({
+      where: { id: makananId },
       data: {
         namaMakanan,
         deskripsi,
-        foto,
+        foto: JSON.stringify(foto),
         harga,
         jenisPaketId
       },
@@ -91,8 +106,15 @@ export async function PUT(
       }
     })
 
-    return NextResponse.json(makanan)
+    // Return with parsed foto
+    const result = {
+      ...updatedMakanan,
+      foto: JSON.parse(updatedMakanan.foto || '[]')
+    }
+
+    return NextResponse.json(result)
   } catch (error) {
+    console.error('PUT /api/makanan/[id] error:', error)
     if (error instanceof Error && error.message.includes('Record to update not found')) {
       return NextResponse.json({ error: 'Makanan not found' }, { status: 404 })
     }
@@ -105,36 +127,39 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const id = parseInt(params.id)
-    if (isNaN(id)) {
+    const { id } = await params
+    const makananId = parseInt(id)
+    if (isNaN(makananId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     // Check if makanan exists
-    const makanan = await prisma.makanan.findUnique({
-      where: { id }
+    const existingMakanan = await prisma.makanan.findUnique({
+      where: { id: makananId }
     })
-
-    if (!makanan) {
+    
+    if (!existingMakanan) {
       return NextResponse.json({ error: 'Makanan not found' }, { status: 404 })
     }
 
+    // Delete makanan
     await prisma.makanan.delete({
-      where: { id }
+      where: { id: makananId }
     })
 
     return NextResponse.json({ message: 'Makanan deleted successfully' })
   } catch (error) {
+    console.error('DELETE /api/makanan/[id] error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

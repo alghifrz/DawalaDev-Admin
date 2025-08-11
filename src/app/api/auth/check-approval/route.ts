@@ -1,64 +1,53 @@
+import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma, withRetry } from '@/lib/prisma'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('Checking approval for user:', user.email);
+    console.log('Checking approval for user:', user.email)
 
-    // Check if user exists in users table (approved)
     let approvedUser = null
     try {
-      approvedUser = await prisma.user.findUnique({
-        where: { email: user.email! },
-      })
+      approvedUser = await withRetry(() => 
+        prisma.user.findUnique({
+          where: { email: user.email! },
+        })
+      )
     } catch (dbError) {
       console.error('Database error in check-approval:', dbError)
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Database temporarily unavailable. Please try again later.' },
+        { status: 500 }
+      )
     }
 
     if (approvedUser) {
-      console.log('User found in users table:', approvedUser.email, 'Role:', approvedUser.role, 'Approved:', approvedUser.isApproved)
       return NextResponse.json({
-        isApproved: approvedUser.isApproved,
+        found: true,
+        email: approvedUser.email,
         role: approvedUser.role,
+        isApproved: approvedUser.isApproved,
       })
-    }
-
-    // Check if user exists in pending_users table
-    let pendingUser = null
-    try {
-      pendingUser = await prisma.pendingUser.findUnique({
-        where: { email: user.email! },
-      })
-    } catch (dbError) {
-      console.error('Database error checking pending user:', dbError)
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
-    }
-
-    if (pendingUser) {
-      console.log('User found in pending_users table:', pendingUser.email)
+    } else {
       return NextResponse.json({
+        found: false,
+        email: user.email,
+        role: null,
         isApproved: false,
-        role: 'PENDING',
       })
     }
-
-    console.log('User not found in either table:', user.email)
-    return NextResponse.json({
-      isApproved: false,
-      role: 'NOT_FOUND',
-    })
-
   } catch (error) {
-    console.error('Error checking approval:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error in check-approval:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 } 
