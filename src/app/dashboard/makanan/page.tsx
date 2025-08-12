@@ -1,36 +1,166 @@
-import { prisma } from '@/lib/prisma'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Plus, Edit, Trash2, Utensils, Package } from 'lucide-react'
+import { Plus, Edit, Trash2, Utensils, Package, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default async function MakananPage() {
-  const makanan = await prisma.makanan.findMany({
-    include: {
-      jenisPaket: true
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  })
+interface Makanan {
+  id: number
+  namaMakanan: string
+  deskripsi: string
+  foto: string | string[]
+  harga: number
+  jenisPaketId: number
+  jenisPaket: {
+    id: number
+    namaPaket: string
+  }
+}
 
-  const jenisPaket = await prisma.jenisPaket.findMany({
-    orderBy: {
-      createdAt: 'desc'
+interface JenisPaket {
+  id: number
+  namaPaket: string
+}
+
+export default function MakananPage() {
+  const [makanan, setMakanan] = useState<Makanan[]>([])
+  const [jenisPaket, setJenisPaket] = useState<JenisPaket[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteItem, setDeleteItem] = useState<{ id: number; name: string; type: 'makanan' | 'jenisPaket' } | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      const [makananRes, jenisPaketRes] = await Promise.all([
+        fetch('/api/makanan'),
+        fetch('/api/jenis-paket')
+      ])
+      
+      if (makananRes.ok) {
+        const makananData = await makananRes.json()
+        setMakanan(makananData)
+      }
+      
+      if (jenisPaketRes.ok) {
+        const jenisPaketData = await jenisPaketRes.json()
+        setJenisPaket(jenisPaketData)
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
     }
-  })
+  }
+
+  const handleDelete = (id: number, name: string, type: 'makanan' | 'jenisPaket') => {
+    setDeleteItem({ id, name, type })
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteItem) return
+
+    try {
+      const endpoint = deleteItem.type === 'makanan' ? `/api/makanan/${deleteItem.id}` : `/api/jenis-paket/${deleteItem.id}`
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        // Refresh data
+        fetchData()
+        setShowDeleteModal(false)
+        setDeleteItem(null)
+      } else {
+        console.error('Failed to delete')
+      }
+    } catch (error) {
+      console.error('Error deleting:', error)
+    }
+  }
 
   // Parse foto JSON for each makanan
-  const makananWithImages = makanan.map(item => {
+  const makananWithImages = makanan.map((item: Makanan) => {
     let images: string[] = []
-    try {
-      images = JSON.parse(item.foto)
-    } catch {
-      // Fallback for old format
-      images = [item.foto]
+    
+    if (item.foto) {
+      if (Array.isArray(item.foto)) {
+        // If foto is already an array, filter out empty strings
+        images = item.foto.filter(img => img && typeof img === 'string' && img.trim() !== '')
+      } else if (typeof item.foto === 'string') {
+        // If foto is a string, try to parse it as JSON
+        try {
+          if (item.foto.trim() !== '') {
+            const parsed = JSON.parse(item.foto)
+            images = Array.isArray(parsed) ? parsed.filter(img => img && typeof img === 'string' && img.trim() !== '') : []
+          }
+        } catch {
+          // Fallback for old format - treat as single image URL
+          if (item.foto.trim() !== '') {
+            images = [item.foto]
+          }
+        }
+      }
     }
+    
     return { ...item, images }
   })
+
+  if (loading) {
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Memuat data...</p>
+                  </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deleteItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-5 w-5 text-red-500 mr-3" />
+              <h3 className="text-lg font-medium text-gray-900">Konfirmasi Hapus</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Apakah Anda yakin ingin menghapus <strong>{deleteItem.name}</strong>? 
+              Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex space-x-3">
+              <Button
+                variant="destructive"
+                onClick={confirmDelete}
+                className="flex-1"
+              >
+                Hapus
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setDeleteItem(null)
+                }}
+                className="flex-1"
+              >
+                Batal
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
   return (
     <div className="p-6 lg:p-8">
@@ -122,11 +252,14 @@ export default async function MakananPage() {
                               <Edit className="h-3 w-3" />
                             </Button>
                           </Link>
-                          <Link href={`/dashboard/makanan/${item.id}/delete`}>
-                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0">
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </Link>
+                          <Button 
+                            size="sm" 
+                            variant="destructive" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleDelete(item.id, item.namaMakanan, 'makanan')}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </td>
                       </tr>
                     ))
@@ -180,11 +313,14 @@ export default async function MakananPage() {
                                 <Edit className="h-3 w-3" />
                               </Button>
                             </Link>
-                            <Link href={`/dashboard/jenis-paket/${paket.id}/delete`}>
-                              <Button size="sm" variant="destructive" className="h-8 w-8 p-0">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </Link>
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleDelete(paket.id, paket.namaPaket, 'jenisPaket')}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </td>
                         </tr>
                       )

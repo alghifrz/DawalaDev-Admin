@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { uploadMultipleImages, uploadMultipleImagesWithServiceRole } from '@/lib/supabase-storage'
+import { checkStorageStatus } from '@/lib/storage-status'
+import { config } from '@/lib/config'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +24,54 @@ export async function POST(request: NextRequest) {
 
     console.log('User authenticated:', user.email)
 
+    // Auto-create bucket if it doesn't exist
+    const storageStatus = await checkStorageStatus()
+    if (!storageStatus.bucketExists) {
+      console.log('Bucket not found, creating automatically...')
+      try {
+        // Check if service role key is available
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          console.error('SUPABASE_SERVICE_ROLE_KEY not found')
+          return NextResponse.json(
+            { error: 'Service role key not configured. Please add SUPABASE_SERVICE_ROLE_KEY to environment variables.' },
+            { status: 500 }
+          )
+        }
+
+        // Use service role client to create bucket (bypasses RLS)
+        const serviceRoleClient = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false
+            }
+          }
+        )
+        
+        const { data: bucket, error: createError } = await serviceRoleClient.storage.createBucket(config.supabase.bucketName, {
+          public: true
+        })
+        
+        if (createError && !createError.message?.includes('already exists')) {
+          console.error('Error creating bucket:', createError)
+          return NextResponse.json(
+            { error: 'Failed to create storage bucket automatically' },
+            { status: 500 }
+          )
+        }
+        
+        console.log('Bucket created successfully or already exists')
+      } catch (error) {
+        console.error('Error in auto bucket creation:', error)
+        return NextResponse.json(
+          { error: 'Failed to setup storage automatically' },
+          { status: 500 }
+        )
+      }
+    }
+
     const formData = await request.formData()
     const files = formData.getAll('files') as File[]
     
@@ -33,8 +85,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const uploadedUrls: string[] = []
-
+    // Validate files
     for (const file of files) {
       console.log('Processing file:', file.name, 'Size:', file.size, 'Type:', file.type)
       
@@ -56,20 +107,42 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-
-      // Convert file to base64
-      const arrayBuffer = await file.arrayBuffer()
-      const base64 = Buffer.from(arrayBuffer).toString('base64')
-      const dataUrl = `data:${file.type};base64,${base64}`
-      
-      console.log('File converted to base64, length:', dataUrl.length)
-      uploadedUrls.push(dataUrl)
     }
 
-    console.log('All files processed successfully:', uploadedUrls.length)
+    // Upload files to Supabase Storage using service role client
+    const serviceRoleClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+    
+    const uploadResults = await uploadMultipleImagesWithServiceRole(files, 'makanan', serviceRoleClient)
+    
+    // Check for upload errors
+    const errors = uploadResults.filter((result: any) => result.error)
+    if (errors.length > 0) {
+      console.error('Upload errors:', errors)
+      return NextResponse.json(
+        { error: 'Some files failed to upload', details: errors },
+        { status: 500 }
+      )
+    }
+
+    // Extract URLs and paths
+    const uploadedFiles = uploadResults.map((result: any) => ({
+      url: result.url,
+      path: result.path
+    }))
+    
+    console.log('All files uploaded successfully:', uploadedFiles.length)
 
     return NextResponse.json({ 
-      urls: uploadedUrls,
+      files: uploadedFiles,
       message: 'Files uploaded successfully' 
     })
 

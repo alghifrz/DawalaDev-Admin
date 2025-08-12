@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { prisma, withRetry } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,11 +15,11 @@ export async function POST(request: NextRequest) {
 
     let approvedUser = null
     try {
-      approvedUser = await withRetry(() => 
-        prisma.user.findUnique({
+      approvedUser = await withPrisma(async (client) => {
+        return await client.user.findUnique({
           where: { email: user.email! },
         })
-      )
+      })
     } catch (dbError) {
       console.error('Database error in check-approval:', dbError)
       return NextResponse.json(

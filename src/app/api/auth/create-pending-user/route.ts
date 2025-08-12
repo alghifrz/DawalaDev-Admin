@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { prisma, withRetry } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,11 +17,11 @@ export async function POST(request: NextRequest) {
 
     let existingUser = null
     try {
-      existingUser = await withRetry(() => 
-        prisma.user.findUnique({
+      existingUser = await withPrisma(async (client) => {
+        return await client.user.findUnique({
           where: { email },
         })
-      )
+      })
     } catch (dbError) {
       console.error('Database error checking existing user:', dbError)
       return NextResponse.json(
@@ -39,15 +39,15 @@ export async function POST(request: NextRequest) {
 
     let pendingUser = null
     try {
-      pendingUser = await withRetry(() => 
-        prisma.pendingUser.create({
+      pendingUser = await withPrisma(async (client) => {
+        return await client.pendingUser.create({
           data: {
             email,
             name,
             authProvider,
           },
         })
-      )
+      })
     } catch (dbError) {
       console.error('Database error creating pending user:', dbError)
       return NextResponse.json(

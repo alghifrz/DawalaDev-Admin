@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Utensils, Upload, X, Image as ImageIcon, Edit, Camera, ChevronDown, AlertCircle, Settings, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Utensils, Upload, X, Image as ImageIcon, Edit, Camera, ChevronDown, AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { makananSchema, type MakananFormData } from '@/lib/validations'
 import { Toast } from '@/components/ui/toast'
@@ -23,7 +23,7 @@ interface Makanan {
   id: number
   namaMakanan: string
   deskripsi: string
-  foto: string[]
+  foto: string | string[]
   harga: number
   jenisPaketId: number
   jenisPaket: {
@@ -73,7 +73,16 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
           setMakanan(makananData)
           
           // Convert foto string to array if it's a single string
-          const fotoArray = Array.isArray(makananData.foto) ? makananData.foto : [makananData.foto]
+          let fotoArray: string[] = []
+          if (makananData.foto) {
+            if (Array.isArray(makananData.foto)) {
+              fotoArray = makananData.foto.filter((url: string) => url && typeof url === 'string' && url.trim() !== '')
+            } else if (typeof makananData.foto === 'string') {
+              if (makananData.foto.trim() !== '') {
+                fotoArray = [makananData.foto]
+              }
+            }
+          }
           setUploadedImages(fotoArray)
           
           // Set form values
@@ -158,21 +167,22 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
       }
 
       const data = await response.json()
-      const newImages = [...uploadedImages, ...data.urls]
+      const newImageUrls = data.files.map((file: any) => file.url)
+      const newImages = [...uploadedImages, ...newImageUrls]
       setUploadedImages(newImages)
       setValue('foto', newImages)
       
       // Show success message
-      console.log(`Berhasil upload ${data.urls.length} foto`)
+      console.log(`Berhasil upload ${data.files.length} foto`)
       
     } catch (error) {
       console.error('Upload error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Gagal upload foto. Silakan coba lagi.'
       setUploadError(errorMessage)
       
-      // If it's a storage bucket error, show setup option
+      // If it's a storage bucket error, show generic error
       if (errorMessage.includes('bucket') || errorMessage.includes('Storage bucket not configured')) {
-        setUploadError('Storage belum dikonfigurasi. Silakan setup storage terlebih dahulu.')
+        setUploadError('Gagal mengupload foto. Silakan coba lagi.')
       }
     } finally {
       setIsUploading(false)
@@ -448,17 +458,7 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
                       <p className="text-red-600 text-sm font-medium">{uploadError}</p>
                     </div>
                     
-                    {/* Setup Storage Button */}
-                    {uploadError.includes('Storage belum dikonfigurasi') && (
-                      <div className="mt-3">
-                        <Link href="/dashboard/setup-storage">
-                          <Button className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2">
-                            <Settings className="h-3 w-3 mr-2" />
-                            Setup Storage
-                          </Button>
-                        </Link>
-                      </div>
-                    )}
+
                   </div>
                 )}
                 
@@ -478,7 +478,7 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
                       <div key={index} className="relative group">
                         <div className="aspect-square rounded-xl overflow-hidden border-2 border-gray-200 hover:border-green-400 transition-colors">
                           <img
-                            src={url}
+                            src={url || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMDAgNzBDMTE2LjU2OSA3MCAxMzAgODMuNDMxIDEzMCAxMDBDMTMwIDExNi41NjkgMTE2LjU2OSAxMzAgMTAwIDEzMEM4My40MzEgMTMwIDcwIDExNi41NjkgNzAgMTAwQzcwIDgzLjQzMSA4My40MzEgNzAgMTAwIDcwWiIgZmlsbD0iI0QxRDU5QiIvPgo8cGF0aCBkPSJNMTAwIDE0MEMxMTYuNTY5IDE0MCAxMzAgMTUzLjQzMSAxMzAgMTcwQzEzMCAxODYuNTY5IDExNi41NjkgMjAwIDEwMCAyMDBDODMuNDMxIDIwMCA3MCAxODYuNTY5IDcwIDE3MEM3MCAxNTMuNDMxIDgzLjQzMSAxNDAgMTAwIDE0MFoiIGZpbGw9IiNEQ0U3RjAiLz4KPC9zdmc+'}
                             alt={`Preview ${index + 1}`}
                             className="w-full h-full object-cover"
                             onError={(e) => {

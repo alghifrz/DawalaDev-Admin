@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
-import { prisma } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma'
 
 export default async function DashboardLayout({
   children,
@@ -19,25 +19,29 @@ export default async function DashboardLayout({
   console.log('User authenticated in dashboard layout:', user.email, 'ID:', user.id)
 
   // Get user data with proper error handling
-  let dbUser = null
+  let dbUser: any = null
   try {
     // Single query to find user by ID or email
-    dbUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { id: user.id },
-          { email: user.email! }
-        ]
-      },
+    dbUser = await withPrisma(async (client) => {
+      return await client.user.findFirst({
+        where: {
+          OR: [
+            { id: user.id },
+            { email: user.email! }
+          ]
+        },
+      })
     })
     
     // If user found by email but ID doesn't match, update the ID
     if (dbUser && dbUser.id !== user.id) {
       console.log('User found by email, but ID mismatch. Supabase ID:', user.id, 'Database ID:', dbUser.id)
       try {
-        dbUser = await prisma.user.update({
-          where: { id: dbUser.id },
-          data: { id: user.id },
+        dbUser = await withPrisma(async (client) => {
+          return await client.user.update({
+            where: { id: dbUser.id },
+            data: { id: user.id },
+          })
         })
         console.log('Updated user ID to match Supabase ID')
       } catch (updateError) {

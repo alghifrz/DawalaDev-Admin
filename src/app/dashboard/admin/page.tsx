@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Clock, UserCheck, Shield, Trash2 } from 'lucide-react'
+import { Clock, UserCheck, Shield, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
 interface PendingUser {
@@ -31,6 +31,8 @@ export default function AdminPage() {
   const [approvedAdmins, setApprovedAdmins] = useState<ApprovedAdmin[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteAdmin, setDeleteAdmin] = useState<{ id: string; email: string } | null>(null)
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
@@ -108,19 +110,28 @@ export default function AdminPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    setActionLoading(id + '-delete')
+  const handleDelete = (id: string, email: string) => {
+    setDeleteAdmin({ id, email })
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteAdmin) return
+
+    setActionLoading(deleteAdmin.id + '-delete')
     try {
       await fetch('/api/admin/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
+        body: JSON.stringify({ id: deleteAdmin.id })
       })
       window.location.reload()
     } catch (e) {
       alert('Gagal hapus admin')
     } finally {
       setActionLoading(null)
+      setShowDeleteModal(false)
+      setDeleteAdmin(null)
     }
   }
 
@@ -218,7 +229,7 @@ export default function AdminPage() {
                         <td className="px-4 py-2">{admin.email}</td>
                         <td className="px-4 py-2">{new Date(admin.createdAt).toLocaleDateString('id-ID')}</td>
                         <td className="px-4 py-2">
-                          <Button size="icon" onClick={() => handleDelete(admin.id)} disabled={actionLoading === admin.id + '-delete'}
+                          <Button size="icon" onClick={() => handleDelete(admin.id, admin.email)} disabled={actionLoading === admin.id + '-delete'}
                             className="bg-red-600 hover:bg-red-700 text-white"
                             title="Hapus"
                           >
@@ -234,6 +245,42 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deleteAdmin && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-5 w-5 text-red-500 mr-3" />
+              <h3 className="text-lg font-medium text-gray-900">Konfirmasi Hapus Admin</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Apakah Anda yakin ingin menghapus admin <strong>{deleteAdmin.email}</strong>? 
+              Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex space-x-3">
+              <Button
+                variant="destructive"
+                onClick={confirmDelete}
+                disabled={actionLoading === deleteAdmin.id + '-delete'}
+                className="flex-1"
+              >
+                {actionLoading === deleteAdmin.id + '-delete' ? 'Menghapus...' : 'Hapus'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setDeleteAdmin(null)
+                }}
+                className="flex-1"
+              >
+                Batal
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

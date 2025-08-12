@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,7 @@ interface PageProps {
 }
 
 export default function EditAdminPage({ params }: PageProps) {
+  const resolvedParams = use(params)
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('')
@@ -32,7 +33,7 @@ export default function EditAdminPage({ params }: PageProps) {
   useEffect(() => {
     const fetchAdmin = async () => {
       try {
-        const response = await fetch(`/api/admin/${params.id}`)
+        const response = await fetch(`/api/admin/${resolvedParams.id}`)
         if (response.ok) {
           const data = await response.json()
           setAdmin(data)
@@ -48,7 +49,7 @@ export default function EditAdminPage({ params }: PageProps) {
     }
 
     fetchAdmin()
-  }, [params.id])
+  }, [resolvedParams.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,7 +63,7 @@ export default function EditAdminPage({ params }: PageProps) {
     }
 
     try {
-      const response = await fetch(`/api/admin/${params.id}`, {
+      const response = await fetch(`/api/admin/${resolvedParams.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

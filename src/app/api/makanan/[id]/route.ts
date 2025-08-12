@@ -82,6 +82,19 @@ export async function PUT(
       )
     }
 
+    // Validate that all foto URLs are valid URLs
+    const validUrls = foto.every(url => 
+      typeof url === 'string' && 
+      (url.startsWith('https://') || url.startsWith('http://'))
+    )
+    
+    if (!validUrls) {
+      return NextResponse.json(
+        { error: 'Invalid foto URLs provided' },
+        { status: 400 }
+      )
+    }
+
     // Check if makanan exists
     const existingMakanan = await prisma.makanan.findUnique({
       where: { id: makananId }
@@ -109,7 +122,7 @@ export async function PUT(
     // Return with parsed foto
     const result = {
       ...updatedMakanan,
-      foto: JSON.parse(updatedMakanan.foto || '[]')
+      foto: foto
     }
 
     return NextResponse.json(result)

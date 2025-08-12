@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET() {
@@ -11,10 +11,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const jenisPaket = await prisma.jenisPaket.findMany({
-      orderBy: {
-        createdAt: 'desc'
-      }
+    const jenisPaket = await withPrisma(async (client) => {
+      return await client.jenisPaket.findMany({
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
     })
 
     return NextResponse.json(jenisPaket)
@@ -45,10 +47,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const jenisPaket = await prisma.jenisPaket.create({
-      data: {
-        namaPaket
-      }
+    const jenisPaket = await withPrisma(async (client) => {
+      return await client.jenisPaket.create({
+        data: {
+          namaPaket
+        }
+      })
     })
 
     return NextResponse.json(jenisPaket, { status: 201 })

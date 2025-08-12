@@ -66,7 +66,7 @@ export default async function MakananDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
           <Image
-            src={makanan.foto}
+            src={makanan.foto || '/placeholder-food.jpg'}
             alt={makanan.namaMakanan}
             width={400}
             height={300}

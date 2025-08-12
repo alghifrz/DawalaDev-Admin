@@ -128,7 +128,7 @@ export default async function SettingsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">User ID:</span>
-                <span className="text-sm font-medium font-mono text-xs">{user.id}</span>
+                <span className="text-sm font-medium font-mono">{user.id}</span>
               </div>
             </div>
           </div>
@@ -248,7 +248,7 @@ export default async function SettingsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">User ID:</span>
-                <span className="text-sm font-medium font-mono text-xs">{user.id}</span>
+                <span className="text-sm font-medium font-mono">{user.id}</span>
               </div>
             </div>
           </div>

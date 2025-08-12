@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { prisma } from '@/lib/prisma'
+import { findUserById, findUserByEmail, updateUser } from '@/lib/db-helpers'
+import { withPrisma } from '@/lib/prisma'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -9,18 +10,14 @@ export default async function DashboardPage() {
     return <div>Loading...</div>
   }
 
-  // Get user data directly
+  // Get user data directly with retry
   let dbUser = null
   try {
-    dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-    })
+    dbUser = await findUserById(user.id)
     
     // If not found by ID, try to find by email
-    if (!dbUser) {
-      dbUser = await prisma.user.findUnique({
-        where: { email: user.email! },
-      })
+    if (!dbUser && user.email) {
+      dbUser = await findUserByEmail(user.email)
     }
   } catch (error) {
     console.error('Error fetching user data:', error)
@@ -30,8 +27,10 @@ export default async function DashboardPage() {
   // Check if any super admin exists
   let superAdminCount = 0
   try {
-    superAdminCount = await prisma.user.count({
-      where: { role: 'SUPER_ADMIN' }
+    superAdminCount = await withPrisma(async (client) => {
+      return await client.user.count({
+        where: { role: 'SUPER_ADMIN' }
+      })
     })
   } catch (error) {
     console.error('Error counting super admins:', error)
@@ -41,12 +40,9 @@ export default async function DashboardPage() {
   // If no super admin exists, promote the first user
   if (superAdminCount === 0 && dbUser) {
     try {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          role: 'SUPER_ADMIN',
-          isApproved: true,
-        },
+      await updateUser(user.id, {
+        role: 'SUPER_ADMIN',
+        isApproved: true,
       })
       console.log('First user promoted to Super Admin')
     } catch (error) {
@@ -61,22 +57,28 @@ export default async function DashboardPage() {
   let recentMakanan: Array<{ id: number; namaMakanan: string; harga: number; createdAt: Date }> = []
 
   try {
-    jenisPaketCount = await prisma.jenisPaket.count()
+    jenisPaketCount = await withPrisma(async (client) => {
+      return await client.jenisPaket.count()
+    })
   } catch (error) {
     console.error('Error counting jenis paket:', error)
     jenisPaketCount = 0
   }
 
   try {
-    makananCount = await prisma.makanan.count()
+    makananCount = await withPrisma(async (client) => {
+      return await client.makanan.count()
+    })
   } catch (error) {
     console.error('Error counting makanan:', error)
     makananCount = 0
   }
 
   try {
-    adminCount = await prisma.user.count({
-      where: { role: 'ADMIN' }
+    adminCount = await withPrisma(async (client) => {
+      return await client.user.count({
+        where: { role: 'ADMIN' }
+      })
     })
   } catch (error) {
     console.error('Error counting admins:', error)
@@ -84,9 +86,11 @@ export default async function DashboardPage() {
   }
 
   try {
-    recentMakanan = await prisma.makanan.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' }
+    recentMakanan = await withPrisma(async (client) => {
+      return await client.makanan.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' }
+      })
     })
   } catch (error) {
     console.error('Error fetching recent makanan:', error)

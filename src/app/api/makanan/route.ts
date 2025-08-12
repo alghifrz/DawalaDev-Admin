@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET() {
@@ -11,16 +11,24 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const makanan = await prisma.makanan.findMany({
-      include: {
-        jenisPaket: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
+    const makanan = await withPrisma(async (client) => {
+      return await client.makanan.findMany({
+        include: {
+          jenisPaket: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
     })
 
-    return NextResponse.json(makanan)
+    // Parse foto URLs from JSON string
+    const makananWithParsedFoto = makanan.map((item: any) => ({
+      ...item,
+      foto: JSON.parse(item.foto)
+    }))
+
+    return NextResponse.json(makananWithParsedFoto)
   } catch (error) {
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -48,8 +56,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate jenis paket exists
-    const jenisPaket = await prisma.jenisPaket.findUnique({
-      where: { id: jenisPaketId }
+    const jenisPaket = await withPrisma(async (client) => {
+      return await client.jenisPaket.findUnique({
+        where: { id: jenisPaketId }
+      })
     })
 
     if (!jenisPaket) {
@@ -59,24 +69,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Handle foto as array of URLs
+    // Handle foto as array of URLs from Supabase Storage
     const fotoUrls = Array.isArray(foto) ? foto : [foto]
+    
+    // Validate that all foto URLs are from Supabase Storage
+    const validUrls = fotoUrls.every(url => 
+      typeof url === 'string' && 
+      (url.startsWith('https://') || url.startsWith('http://'))
+    )
+    
+    if (!validUrls) {
+      return NextResponse.json(
+        { error: 'Invalid foto URLs provided' },
+        { status: 400 }
+      )
+    }
+    
     const fotoJson = JSON.stringify(fotoUrls)
 
-    const makanan = await prisma.makanan.create({
-      data: {
-        namaMakanan,
-        deskripsi,
-        foto: fotoJson,
-        harga,
-        jenisPaketId
-      },
-      include: {
-        jenisPaket: true
-      }
+    const makanan = await withPrisma(async (client) => {
+      return await client.makanan.create({
+        data: {
+          namaMakanan,
+          deskripsi,
+          foto: fotoJson,
+          harga,
+          jenisPaketId
+        },
+        include: {
+          jenisPaket: true
+        }
+      })
     })
 
-    return NextResponse.json(makanan, { status: 201 })
+    // Return with parsed foto
+    const makananWithParsedFoto = {
+      ...makanan,
+      foto: fotoUrls
+    }
+
+    return NextResponse.json(makananWithParsedFoto, { status: 201 })
   } catch (error) {
     console.error('Error creating makanan:', error)
     return NextResponse.json(
