@@ -84,13 +84,22 @@ export default function AdminPage() {
   const handleApprove = async (id: string) => {
     setActionLoading(id + '-approve')
     try {
-      await fetch('/api/admin/approve', {
+      const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
+        body: JSON.stringify({ pendingUserId: id })
       })
-      window.location.reload()
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        alert(data.message || 'Admin berhasil disetujui')
+        window.location.reload()
+      } else {
+        alert(data.error || 'Gagal approve admin')
+      }
     } catch (e) {
+      console.error('Error approving admin:', e)
       alert('Gagal approve admin')
     } finally {
       setActionLoading(null)
@@ -100,13 +109,22 @@ export default function AdminPage() {
   const handleReject = async (id: string) => {
     setActionLoading(id + '-reject')
     try {
-      await fetch('/api/admin/reject', {
+      const response = await fetch('/api/admin/reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
+        body: JSON.stringify({ pendingUserId: id })
       })
-      window.location.reload()
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        alert(data.message || 'Admin berhasil ditolak')
+        window.location.reload()
+      } else {
+        alert(data.error || 'Gagal reject admin')
+      }
     } catch (e) {
+      console.error('Error rejecting admin:', e)
       alert('Gagal reject admin')
     } finally {
       setActionLoading(null)

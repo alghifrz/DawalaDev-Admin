@@ -67,7 +67,7 @@ export default function LoginPage() {
           const { exists, isPending } = await checkResponse.json()
           
           if (!exists && !isPending) {
-            setError('Akun tidak ditemukan. Silakan daftar terlebih dahulu.')
+            setError('Akun tidak ditemukan. Silakan daftar terlebih dahulu atau periksa email Anda.')
             setIsLoading(false)
             return
           }
@@ -89,8 +89,11 @@ export default function LoginPage() {
       })
 
       if (error) {
+        console.error('Login error:', error)
         const authError = await handleAuthError(error)
         setError(authError.message)
+        setIsLoading(false)
+        return
       } else {
         // Check approval status after successful login
         try {
@@ -125,7 +128,6 @@ export default function LoginPage() {
       console.error('Unexpected login error:', error)
       const authError = await handleAuthError(error)
       setError(authError.message)
-    } finally {
       setIsLoading(false)
     }
   }
@@ -192,17 +194,7 @@ export default function LoginPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="remember"
-                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                />
-                <Label htmlFor="remember" className="text-sm text-gray-600">
-                  Ingat saya
-                </Label>
-              </div>
+            <div className="flex justify-end">
               <Link
                 href="/auth/forgot-password"
                 className="text-sm text-green-600 hover:text-green-700 font-medium"
@@ -211,11 +203,21 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{error}</p>
+                    {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
               </div>
-            )}
+              <div className="ml-3">
+                <p className="text-sm text-red-700 font-medium">Login Gagal</p>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
             <Button
               type="submit"

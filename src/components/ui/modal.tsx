@@ -67,12 +67,12 @@ export default function Modal({
       
       {/* Modal */}
       <div className={`
-        relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-xl border
+        relative w-full max-w-lg mx-4 bg-white rounded-2xl shadow-xl border
         transform transition-all duration-300 ease-out
         ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}
       `}>
         {/* Header */}
-        <div className={`px-6 py-4 border-b ${children ? 'bg-gray-50' : getBgColor()}`}>
+        <div className={`px-6 py-4 border-b rounded-t-2xl ${children ? 'bg-gray-50' : getBgColor()}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               {!children && getIcon()}
@@ -90,7 +90,7 @@ export default function Modal({
         </div>
 
         {/* Content */}
-        <div className="px-6 py-6">
+        <div className="px-8 py-8">
           {children ? (
             children
           ) : (

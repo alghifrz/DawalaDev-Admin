@@ -26,7 +26,7 @@ export async function handleAuthError(error: any): Promise<AuthError> {
   
   if (error?.message?.includes('Invalid login credentials')) {
     return {
-      message: 'Email atau password salah. Silakan cek kembali.',
+      message: 'Email atau password salah. Silakan periksa kembali email dan password Anda.',
       code: 'INVALID_CREDENTIALS'
     }
   }
@@ -52,6 +52,22 @@ export async function handleAuthError(error: any): Promise<AuthError> {
     }
   }
   
+  // Handle network errors
+  if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
+    return {
+      message: 'Koneksi internet bermasalah. Silakan periksa koneksi Anda dan coba lagi.',
+      code: 'NETWORK_ERROR'
+    }
+  }
+
+  // Handle timeout errors
+  if (error?.message?.includes('timeout')) {
+    return {
+      message: 'Waktu tunggu habis. Silakan coba lagi.',
+      code: 'TIMEOUT_ERROR'
+    }
+  }
+
   // Default error message
   return {
     message: error?.message || 'Terjadi kesalahan saat autentikasi. Silakan coba lagi.',

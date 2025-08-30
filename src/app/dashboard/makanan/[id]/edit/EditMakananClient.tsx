@@ -288,7 +288,7 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Edit Menu Makanan ✏️</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Edit Menu Makanan</h1>
           <p className="text-gray-600">Perbarui informasi menu makanan</p>
         </div>
       </div>
@@ -298,12 +298,12 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
           {/* Form Header */}
           <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-100">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Edit className="h-8 w-8 text-blue-600" />
+            <div className="p-3 bg-green-100 rounded-xl">
+              <Edit className="h-8 w-8 text-green-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-blue-700">Form Edit Menu Makanan</h2>
-              <p className="text-blue-600">Perbarui informasi menu makanan</p>
+              <h2 className="text-2xl font-bold text-green-700">Form Edit Menu Makanan</h2>
+              <p className="text-green-600">Perbarui informasi menu makanan</p>
             </div>
           </div>
 
@@ -541,10 +541,15 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
 
             {/* Submit Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100">
+              <Link href="/dashboard/makanan" className="flex-1">
+                <Button type="button" variant="outline" className="w-full h-12 text-base border-gray-300 text-gray-700 hover:bg-gray-50">
+                  Batal
+                </Button>
+              </Link>
               <Button
                 type="submit"
                 disabled={isSubmitting || isUploading}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-semibold"
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white h-12 text-base font-semibold"
               >
                 {isSubmitting ? (
                   <>
@@ -558,11 +563,6 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
                   </>
                 )}
               </Button>
-              <Link href="/dashboard/makanan" className="flex-1">
-                <Button type="button" variant="outline" className="w-full h-12 text-base border-gray-300 text-gray-700 hover:bg-gray-50">
-                  Batal
-                </Button>
-              </Link>
             </div>
           </form>
         </div>

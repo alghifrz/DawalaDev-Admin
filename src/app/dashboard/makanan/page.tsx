@@ -43,6 +43,9 @@ export default function MakananPage() {
   const [modalLoading, setModalLoading] = useState(false)
   const [searchJenisPaket, setSearchJenisPaket] = useState('')
   const [searchMakanan, setSearchMakanan] = useState('')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteItem, setDeleteItem] = useState<{id: number, name: string, type: 'makanan' | 'jenis-paket'} | null>(null)
+  const [deleteModalLoading, setDeleteModalLoading] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -72,14 +75,20 @@ export default function MakananPage() {
     }
   }
 
-  const handleDeleteMakanan = async (id: number, name: string) => {
-    const confirmed = confirm(`Apakah Anda yakin ingin menghapus menu "${name}"?`)
-    if (!confirmed) return
+  const handleDeleteMakanan = (id: number, name: string) => {
+    setDeleteItem({ id, name, type: 'makanan' })
+    setShowDeleteModal(true)
+  }
 
-    setDeleteLoading(id)
+  const confirmDeleteMakanan = async () => {
+    if (!deleteItem || deleteItem.type !== 'makanan') return
+
+    setDeleteModalLoading(true)
+    setDeleteLoading(deleteItem.id)
+    setShowDeleteModal(false)
     
     try {
-      const response = await fetch(`/api/makanan/${id}`, {
+      const response = await fetch(`/api/makanan/${deleteItem.id}`, {
         method: 'DELETE',
       })
 
@@ -94,10 +103,12 @@ export default function MakananPage() {
       alert(error instanceof Error ? error.message : 'Terjadi kesalahan saat menghapus')
     } finally {
       setDeleteLoading(null)
+      setDeleteModalLoading(false)
+      setDeleteItem(null)
     }
   }
 
-  const handleDeleteJenisPaket = async (id: number, name: string) => {
+  const handleDeleteJenisPaket = (id: number, name: string) => {
     // Check if jenis paket has associated makanan
     const menuCount = makanan.filter(m => m.jenisPaketId === id).length
     
@@ -106,13 +117,19 @@ export default function MakananPage() {
       return
     }
 
-    const confirmed = confirm(`Apakah Anda yakin ingin menghapus jenis paket "${name}"?`)
-    if (!confirmed) return
+    setDeleteItem({ id, name, type: 'jenis-paket' })
+    setShowDeleteModal(true)
+  }
 
-    setDeleteLoading(id)
+  const confirmDeleteJenisPaket = async () => {
+    if (!deleteItem || deleteItem.type !== 'jenis-paket') return
+
+    setDeleteModalLoading(true)
+    setDeleteLoading(deleteItem.id)
+    setShowDeleteModal(false)
     
     try {
-      const response = await fetch(`/api/jenis-paket/${id}`, {
+      const response = await fetch(`/api/jenis-paket/${deleteItem.id}`, {
         method: 'DELETE',
       })
 
@@ -127,6 +144,8 @@ export default function MakananPage() {
       alert(error instanceof Error ? error.message : 'Terjadi kesalahan saat menghapus')
     } finally {
       setDeleteLoading(null)
+      setDeleteModalLoading(false)
+      setDeleteItem(null)
     }
   }
 
@@ -210,6 +229,21 @@ export default function MakananPage() {
     setNamaPaket('')
   }
 
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false)
+    setDeleteItem(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteItem) return
+
+    if (deleteItem.type === 'makanan') {
+      await confirmDeleteMakanan()
+    } else if (deleteItem.type === 'jenis-paket') {
+      await confirmDeleteJenisPaket()
+    }
+  }
+
   // Parse foto JSON for each makanan
   const makananWithImages = makanan.map((item: Makanan) => {
     let images: string[] = []
@@ -248,18 +282,6 @@ export default function MakananPage() {
     item.jenisPaket.namaPaket.toLowerCase().includes(searchMakanan.toLowerCase())
   )
 
-  if (loading) {
-    return (
-      <div className="p-6 lg:p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Memuat data...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="p-6 lg:p-8">
@@ -513,37 +535,63 @@ export default function MakananPage() {
         onClose={closeModal}
         title="Tambah Jenis Paket"
       >
-        <form onSubmit={handleAddJenisPaket} className="space-y-4">
-          <div>
-            <Label htmlFor="addNamaPaket">Nama Paket</Label>
-            <Input
-              id="addNamaPaket"
-              type="text"
-              value={namaPaket}
-              onChange={(e) => setNamaPaket(e.target.value)}
-              placeholder="Masukkan nama paket"
-              required
-            />
+        <div className="space-y-6">
+          {/* Header with Icon */}
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Tambah Jenis Paket Baru</h3>
+            <p className="text-sm text-gray-500">Isi informasi jenis paket yang akan ditambahkan</p>
           </div>
 
-          <div className="flex space-x-4">
-            <Button
-              type="submit"
-              disabled={modalLoading}
-              className="flex-1"
-            >
-              {modalLoading ? 'Menambah...' : 'Tambah Paket'}
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={closeModal}
-              className="flex-1"
-            >
-              Batal
-            </Button>
-          </div>
-        </form>
+          <form onSubmit={handleAddJenisPaket} className="space-y-6">
+            {/* Nama Paket Field */}
+            <div className="space-y-2">
+              <Label htmlFor="addNamaPaket" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                Nama Paket
+              </Label>
+              <div className="relative">
+                <Input
+                  id="addNamaPaket"
+                  type="text"
+                  value={namaPaket}
+                  onChange={(e) => setNamaPaket(e.target.value)}
+                  placeholder="Masukkan nama paket"
+                  required
+                  className="h-11 pl-4 pr-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={closeModal}
+                className="flex-1 h-11 border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-lg"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={modalLoading}
+                className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm"
+              >
+                {modalLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Menambahkan...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Tambah Paket
+                  </div>
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
       </Modal>
 
       {/* Edit Jenis Paket Modal */}
@@ -552,37 +600,117 @@ export default function MakananPage() {
         onClose={closeModal}
         title="Edit Jenis Paket"
       >
-        <form onSubmit={handleEditJenisPaket} className="space-y-4">
-          <div>
-            <Label htmlFor="editNamaPaket">Nama Paket</Label>
-            <Input
-              id="editNamaPaket"
-              type="text"
-              value={namaPaket}
-              onChange={(e) => setNamaPaket(e.target.value)}
-              placeholder="Masukkan nama paket"
-              required
-            />
+        <div className="space-y-6">
+          {/* Header with Icon */}
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Edit Jenis Paket</h3>
+            <p className="text-sm text-gray-500">Ubah informasi jenis paket yang dipilih</p>
           </div>
 
-          <div className="flex space-x-4">
-            <Button
-              type="submit"
-              disabled={modalLoading}
-              className="flex-1"
-            >
-              {modalLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
-            </Button>
+          <form onSubmit={handleEditJenisPaket} className="space-y-6">
+            {/* Nama Paket Field */}
+            <div className="space-y-2">
+              <Label htmlFor="editNamaPaket" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                Nama Paket
+              </Label>
+              <div className="relative">
+                <Input
+                  id="editNamaPaket"
+                  type="text"
+                  value={namaPaket}
+                  onChange={(e) => setNamaPaket(e.target.value)}
+                  placeholder="Masukkan nama paket"
+                  required
+                  className="h-11 pl-4 pr-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={closeModal}
+                className="flex-1 h-11 border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-lg"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={modalLoading}
+                className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm"
+              >
+                {modalLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Menyimpan...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Edit className="h-4 w-4" />
+                    Simpan Perubahan
+                  </div>
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={closeDeleteModal}
+        title="Konfirmasi Hapus"
+      >
+        <div className="space-y-6">
+          {/* Header with Icon */}
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Konfirmasi Penghapusan</h3>
+            <p className="text-sm text-gray-500">
+              Apakah Anda yakin ingin menghapus {deleteItem?.type === 'makanan' ? 'menu' : 'jenis paket'} "{deleteItem?.name}"?
+            </p>
+            {deleteItem?.type === 'makanan' && (
+              <p className="text-xs text-red-600 mt-2">
+                ⚠️ Tindakan ini tidak dapat dibatalkan
+              </p>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3 pt-4">
             <Button 
               type="button" 
               variant="outline" 
-              onClick={closeModal}
-              className="flex-1"
+              onClick={closeDeleteModal}
+              className="flex-1 h-11 border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-lg"
             >
               Batal
             </Button>
+            <Button
+              onClick={confirmDelete}
+              disabled={deleteModalLoading}
+              className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm"
+            >
+              {deleteModalLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Menghapus...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Ya, Hapus
+                </div>
+              )}
+            </Button>
           </div>
-        </form>
+        </div>
       </Modal>
     </div>
   )

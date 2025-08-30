@@ -227,7 +227,7 @@ export default function TambahMakananPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tambah Menu Makanan 🍽️</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Tambah Menu Makanan</h1>
           <p className="text-gray-600">Tambah menu makanan baru ke database</p>
         </div>
       </div>
@@ -507,6 +507,11 @@ export default function TambahMakananPage() {
 
             {/* Submit Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100">
+              <Link href="/dashboard/makanan" className="flex-1">
+                <Button type="button" variant="outline" className="w-full h-12 text-base border-gray-300 text-gray-700 hover:bg-gray-50">
+                  Batal
+                </Button>
+              </Link>
               <Button
                 type="submit"
                 disabled={isSubmitting || isUploading}
@@ -524,11 +529,6 @@ export default function TambahMakananPage() {
                   </>
                 )}
               </Button>
-              <Link href="/dashboard/makanan" className="flex-1">
-                <Button type="button" variant="outline" className="w-full h-12 text-base border-gray-300 text-gray-700 hover:bg-gray-50">
-                  Batal
-                </Button>
-              </Link>
             </div>
           </form>
         </div>

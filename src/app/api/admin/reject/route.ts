@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `User ${pendingUser.email} berhasil ditolak`,
+      message: `Pendaftaran Admin ${pendingUser.email} berhasil ditolak`,
     })
   } catch (error) {
     console.error('Error rejecting user:', error)
