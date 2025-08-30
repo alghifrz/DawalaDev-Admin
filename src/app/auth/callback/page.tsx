@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { handleAuthError, clearAuthSession } from '@/lib/auth-utils'
 
 export default function CallbackPage() {
   const router = useRouter()
@@ -34,7 +35,13 @@ export default function CallbackPage() {
         
         if (userError) {
           console.error('Error getting user:', userError)
-          setError(userError.message)
+          const authError = await handleAuthError(userError)
+          setError(authError.message)
+          
+          // If it's a refresh token error, clear the session
+          if (authError.code === 'INVALID_REFRESH_TOKEN' || authError.code === 'REFRESH_TOKEN_NOT_FOUND') {
+            await clearAuthSession()
+          }
           return
         }
 

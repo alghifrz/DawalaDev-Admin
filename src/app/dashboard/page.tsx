@@ -104,6 +104,8 @@ export default async function DashboardPage() {
         <p className="text-gray-600">Selamat datang di panel admin Dawala</p>
       </div>
 
+
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">

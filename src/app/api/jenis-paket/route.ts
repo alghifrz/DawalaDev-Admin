@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { namaPaket } = await request.json()
+    const { namaPaket, namaPaketEn } = await request.json()
 
     if (!namaPaket) {
       return NextResponse.json(
@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
     const jenisPaket = await withPrisma(async (client) => {
       return await client.jenisPaket.create({
         data: {
-          namaPaket
+          namaPaket,
+          namaPaketEn: namaPaketEn || null
         }
       })
     })

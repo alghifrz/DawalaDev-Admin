@@ -24,6 +24,12 @@ export async function createServerSupabaseClient() {
           }
         },
       },
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+        flowType: 'pkce'
+      }
     }
   )
 } 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,8 +14,10 @@ export async function POST(request: NextRequest) {
     // Check if user exists in users table
     let approvedUser = null
     try {
-      approvedUser = await prisma.user.findUnique({
-        where: { email },
+      approvedUser = await withPrisma(async (prisma) => {
+        return await prisma.user.findUnique({
+          where: { email },
+        })
       })
     } catch (dbError) {
       console.error('Database error checking approved user:', dbError)
@@ -34,8 +36,10 @@ export async function POST(request: NextRequest) {
     // Check if user exists in pending_users table
     let pendingUser = null
     try {
-      pendingUser = await prisma.pendingUser.findUnique({
-        where: { email },
+      pendingUser = await withPrisma(async (prisma) => {
+        return await prisma.pendingUser.findUnique({
+          where: { email },
+        })
       })
     } catch (dbError) {
       console.error('Database error checking pending user:', dbError)

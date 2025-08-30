@@ -2,19 +2,15 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import { withPrisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/session-recovery'
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    console.log('No user found in dashboard layout, redirecting to login')
-    redirect('/auth/login')
-  }
+  // Use the session recovery utility to validate authentication
+  const user = await requireAuth()
 
   console.log('User authenticated in dashboard layout:', user.email, 'ID:', user.id)
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET(
@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -19,11 +19,13 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
-    const jenisPaket = await prisma.jenisPaket.findUnique({
-      where: { id },
-      include: {
-        makanan: true
-      }
+    const jenisPaket = await withPrisma(async (prisma) => {
+      return await prisma.jenisPaket.findUnique({
+        where: { id },
+        include: {
+          makanan: true
+        }
+      })
     })
 
     if (!jenisPaket) {
@@ -32,6 +34,7 @@ export async function GET(
 
     return NextResponse.json(jenisPaket)
   } catch (error) {
+    console.error('Error fetching jenis paket:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -44,7 +47,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -56,7 +59,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
-    const { namaPaket } = await request.json()
+    const { namaPaket, namaPaketEn } = await request.json()
 
     if (!namaPaket) {
       return NextResponse.json(
@@ -65,13 +68,19 @@ export async function PUT(
       )
     }
 
-    const jenisPaket = await prisma.jenisPaket.update({
-      where: { id },
-      data: { namaPaket }
+    const jenisPaket = await withPrisma(async (prisma) => {
+      return await prisma.jenisPaket.update({
+        where: { id },
+        data: { 
+          namaPaket,
+          namaPaketEn: namaPaketEn || null
+        }
+      })
     })
 
     return NextResponse.json(jenisPaket)
   } catch (error) {
+    console.error('Error updating jenis paket:', error)
     if (error instanceof Error && error.message.includes('Record to update not found')) {
       return NextResponse.json({ error: 'Jenis paket not found' }, { status: 404 })
     }
@@ -87,7 +96,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -100,15 +109,17 @@ export async function DELETE(
     }
 
     // Check if jenis paket has associated makanan
-    const jenisPaket = await prisma.jenisPaket.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: {
-            makanan: true
+    const jenisPaket = await withPrisma(async (prisma) => {
+      return await prisma.jenisPaket.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: {
+              makanan: true
+            }
           }
         }
-      }
+      })
     })
 
     if (!jenisPaket) {
@@ -122,12 +133,15 @@ export async function DELETE(
       )
     }
 
-    await prisma.jenisPaket.delete({
-      where: { id }
+    await withPrisma(async (prisma) => {
+      await prisma.jenisPaket.delete({
+        where: { id }
+      })
     })
 
     return NextResponse.json({ message: 'Jenis paket deleted successfully' })
   } catch (error) {
+    console.error('Error deleting jenis paket:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

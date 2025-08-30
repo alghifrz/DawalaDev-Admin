@@ -65,7 +65,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
-    const { namaMakanan, deskripsi, foto, harga, jenisPaketId } = await request.json()
+    const { namaMakanan, deskripsi, deskripsiEn, foto, harga, jenisPaketId } = await request.json()
 
     if (!namaMakanan || !deskripsi || !foto || !harga || !jenisPaketId) {
       return NextResponse.json(
@@ -110,6 +110,7 @@ export async function PUT(
       data: {
         namaMakanan,
         deskripsi,
+        deskripsiEn: deskripsiEn || null,
         foto: JSON.stringify(foto),
         harga,
         jenisPaketId

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { MultiLangText, MultiLangDescription } from '@/components/MultiLangText'
 
 export default async function MakananDetailPage({
   params,
@@ -76,12 +77,22 @@ export default async function MakananDetailPage({
         <div className="space-y-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{makanan.namaMakanan}</h2>
-            <p className="text-lg text-gray-600">{makanan.jenisPaket.namaPaket}</p>
+            <MultiLangText
+              textEn={makanan.jenisPaket.namaPaketEn}
+              defaultText={makanan.jenisPaket.namaPaket}
+              className="text-lg text-gray-600"
+              showLanguageToggle={true}
+            />
           </div>
           
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Deskripsi</h3>
-            <p className="text-gray-600">{makanan.deskripsi}</p>
+            <MultiLangDescription
+              textEn={makanan.deskripsiEn}
+              defaultText={makanan.deskripsi}
+              className="text-gray-600"
+              showLanguageToggle={true}
+            />
           </div>
 
           <div>

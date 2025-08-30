@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { loginSchema, type LoginFormData } from '@/lib/validations'
 import { createClient } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { handleAuthError, clearAuthSession } from '@/lib/auth-utils'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -49,6 +50,9 @@ export default function LoginPage() {
     setError('')
 
     try {
+      // Clear any existing auth session first
+      await clearAuthSession()
+
       // First, check if user exists in our database
       try {
         const checkResponse = await fetch('/api/auth/check-user-exists', {
@@ -85,20 +89,8 @@ export default function LoginPage() {
       })
 
       if (error) {
-        console.error('Login error:', error)
-        
-        // Handle specific error cases
-        if (error.message.includes('Invalid login credentials')) {
-          setError('Email atau password salah. Silakan cek kembali.')
-        } else if (error.message.includes('Email not confirmed')) {
-          setError('Email belum dikonfirmasi. Silakan cek email Anda dan klik link konfirmasi.')
-        } else if (error.message.includes('User not found')) {
-          setError('Akun tidak ditemukan. Silakan daftar terlebih dahulu.')
-        } else if (error.message.includes('Too many requests')) {
-          setError('Terlalu banyak percobaan login. Silakan coba lagi dalam beberapa menit.')
-        } else {
-          setError(`Login gagal: ${error.message}`)
-        }
+        const authError = await handleAuthError(error)
+        setError(authError.message)
       } else {
         // Check approval status after successful login
         try {
@@ -131,7 +123,8 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error('Unexpected login error:', error)
-      setError('Terjadi kesalahan saat login. Silakan coba lagi.')
+      const authError = await handleAuthError(error)
+      setError(authError.message)
     } finally {
       setIsLoading(false)
     }

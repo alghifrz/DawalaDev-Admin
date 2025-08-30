@@ -69,18 +69,21 @@ async function main() {
     const paket1 = await prisma.jenisPaket.create({
       data: {
         namaPaket: 'Paket Sarapan',
+        namaPaketEn: 'Breakfast Package',
       },
     })
 
     const paket2 = await prisma.jenisPaket.create({
       data: {
         namaPaket: 'Paket Makan Siang',
+        namaPaketEn: 'Lunch Package',
       },
     })
 
     const paket3 = await prisma.jenisPaket.create({
       data: {
         namaPaket: 'Paket Makan Malam',
+        namaPaketEn: 'Dinner Package',
       },
     })
 
@@ -92,7 +95,8 @@ async function main() {
       data: {
         namaMakanan: 'Nasi Goreng Spesial',
         deskripsi: 'Nasi goreng dengan telur, ayam, dan sayuran segar',
-        foto: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400',
+        deskripsiEn: 'Fried rice with egg, chicken, and fresh vegetables',
+        foto: JSON.stringify(['https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400']),
         harga: 25000,
         jenisPaketId: paket1.id,
       },
@@ -102,7 +106,8 @@ async function main() {
       data: {
         namaMakanan: 'Ayam Goreng Crispy',
         deskripsi: 'Ayam goreng crispy dengan bumbu special',
-        foto: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=400',
+        deskripsiEn: 'Crispy fried chicken with special seasoning',
+        foto: JSON.stringify(['https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=400']),
         harga: 35000,
         jenisPaketId: paket2.id,
       },
@@ -112,7 +117,8 @@ async function main() {
       data: {
         namaMakanan: 'Soto Ayam',
         deskripsi: 'Soto ayam dengan kuah kaldu yang gurih',
-        foto: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
+        deskripsiEn: 'Chicken soup with savory broth',
+        foto: JSON.stringify(['https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400']),
         harga: 20000,
         jenisPaketId: paket1.id,
       },
@@ -122,7 +128,8 @@ async function main() {
       data: {
         namaMakanan: 'Gado-gado',
         deskripsi: 'Sayuran segar dengan bumbu kacang yang lezat',
-        foto: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+        deskripsiEn: 'Fresh vegetables with delicious peanut sauce',
+        foto: JSON.stringify(['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400']),
         harga: 18000,
         jenisPaketId: paket2.id,
       },
@@ -132,7 +139,8 @@ async function main() {
       data: {
         namaMakanan: 'Rendang Daging',
         deskripsi: 'Daging sapi yang dimasak dengan bumbu rendang tradisional',
-        foto: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
+        deskripsiEn: 'Beef cooked with traditional rendang spices',
+        foto: JSON.stringify(['https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400']),
         harga: 45000,
         jenisPaketId: paket3.id,
       },

@@ -2,18 +2,17 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { ChevronDown, LogOut, User, Settings } from 'lucide-react'
 
 export default function LogoutButton() {
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
+  const { signOut } = useAuth()
 
   const handleLogout = async () => {
     try {
-      const supabase = createClient()
-      await supabase.auth.signOut()
-      router.push('/auth/login')
+      await signOut()
     } catch (error) {
       console.error('Error logging out:', error)
       router.push('/auth/login')

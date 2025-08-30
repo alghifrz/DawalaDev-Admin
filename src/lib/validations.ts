@@ -42,6 +42,7 @@ export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>
 // JenisPaket form validation
 export const jenisPaketSchema = z.object({
   namaPaket: z.string().min(2, "Nama paket minimal 2 karakter").max(100, "Nama paket maksimal 100 karakter"),
+  namaPaketEn: z.string().optional(),
 })
 
 export type JenisPaketFormData = z.infer<typeof jenisPaketSchema>
@@ -49,7 +50,8 @@ export type JenisPaketFormData = z.infer<typeof jenisPaketSchema>
 // Makanan form validation
 export const makananSchema = z.object({
   namaMakanan: z.string().min(2, "Nama makanan minimal 2 karakter").max(100, "Nama makanan maksimal 100 karakter"),
-  deskripsi: z.string().min(10, "Deskripsi minimal 10 karakter").max(500, "Deskripsi maksimal 500 karakter"),
+  deskripsi: z.string().min(10, "Deskripsi minimal 10 karakter").max(10000, "Deskripsi maksimal 2000 karakter"),
+  deskripsiEn: z.string().optional(),
   foto: z.array(z.string().url("URL foto tidak valid")).min(1, "Minimal 1 foto harus diupload"),
   harga: z.number().min(1000, "Harga minimal Rp 1.000").max(1000000, "Harga maksimal Rp 1.000.000"),
   jenisPaketId: z.number().min(1, "Jenis paket harus dipilih"),

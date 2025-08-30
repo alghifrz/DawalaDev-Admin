@@ -8,7 +8,8 @@ interface ModalProps {
   isOpen: boolean
   onClose: () => void
   title: string
-  message: string
+  children?: React.ReactNode
+  message?: string
   type?: 'info' | 'success' | 'warning'
   showCloseButton?: boolean
 }
@@ -17,6 +18,7 @@ export default function Modal({
   isOpen, 
   onClose, 
   title, 
+  children,
   message, 
   type = 'info',
   showCloseButton = true 
@@ -70,10 +72,10 @@ export default function Modal({
         ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}
       `}>
         {/* Header */}
-        <div className={`px-6 py-4 border-b ${getBgColor()}`}>
+        <div className={`px-6 py-4 border-b ${children ? 'bg-gray-50' : getBgColor()}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              {getIcon()}
+              {!children && getIcon()}
               <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
             </div>
             {showCloseButton && (
@@ -89,29 +91,35 @@ export default function Modal({
 
         {/* Content */}
         <div className="px-6 py-6">
-          <p className="text-gray-700 leading-relaxed">{message}</p>
+          {children ? (
+            children
+          ) : (
+            <p className="text-gray-700 leading-relaxed">{message}</p>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-          <div className="flex justify-end space-x-3">
-            {showCloseButton && (
+        {/* Footer - only show if no children (for notification modals) */}
+        {!children && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+            <div className="flex justify-end space-x-3">
+              {showCloseButton && (
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                  className="px-4 py-2"
+                >
+                  Tutup
+                </Button>
+              )}
               <Button
-                variant="outline"
-                onClick={onClose}
-                className="px-4 py-2"
+                onClick={() => window.location.href = '/auth/login'}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700"
               >
-                Tutup
+                Kembali ke Login
               </Button>
-            )}
-            <Button
-              onClick={() => window.location.href = '/auth/login'}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700"
-            >
-              Kembali ke Login
-            </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

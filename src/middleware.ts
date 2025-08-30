@@ -1,4 +1,3 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -15,24 +14,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check authentication for dashboard routes
+  // Allow access to root page
+  if (pathname === '/') {
+    return NextResponse.next()
+  }
+
+  // For dashboard routes, let the dashboard layout handle authentication
+  // This avoids Supabase calls in middleware which can cause fetch errors
   if (pathname.startsWith('/dashboard')) {
-    try {
-      const supabase = await createServerSupabaseClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        // User not authenticated, redirect to login
-        return NextResponse.redirect(new URL('/auth/login', request.url))
-      }
-
-      // User is authenticated, let the dashboard layout handle approval checks
-      return NextResponse.next()
-    } catch (error) {
-      console.error('Middleware error:', error)
-      // If there's an error, redirect to login
-      return NextResponse.redirect(new URL('/auth/login', request.url))
-    }
+    // Just pass through to dashboard layout
+    return NextResponse.next()
   }
 
   // For all other routes, allow access

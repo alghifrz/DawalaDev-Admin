@@ -43,6 +43,7 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [descriptionLength, setDescriptionLength] = useState(0)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isVisible: boolean }>({
     message: '',
     type: 'success',
@@ -56,12 +57,21 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
     handleSubmit,
     control,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
     setError,
     reset,
   } = useForm<MakananFormData>({
     resolver: zodResolver(makananSchema),
   })
+
+  // Watch the description field for character count
+  const watchedDescription = watch('deskripsi', '')
+
+  useEffect(() => {
+    // Update description length
+    setDescriptionLength(watchedDescription.length)
+  }, [watchedDescription])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -385,17 +395,31 @@ export default function EditMakananClient({ id }: EditMakananClientProps) {
 
             {/* Description - Full Width */}
             <div>
-              <Label htmlFor="deskripsi" className="text-sm font-semibold text-gray-700 mb-2 block">
-                Deskripsi Menu *
-              </Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="deskripsi" className="text-sm font-semibold text-gray-700">
+                  Deskripsi Menu *
+                </Label>
+                <span className={`text-xs font-medium ${
+                  descriptionLength > 10000 ? 'text-red-500' : 
+                  descriptionLength > 9000 ? 'text-orange-500' : 
+                  'text-gray-500'
+                }`}>
+                  {descriptionLength}/10000 karakter
+                </span>
+              </div>
               <Textarea
                 id="deskripsi"
                 {...register('deskripsi')}
-                placeholder="Deskripsikan menu makanan dengan detail..."
+                placeholder="Deskripsikan menu makanan dengan detail... (minimal 10 karakter, maksimal 2000 karakter)"
                 className={`min-h-[240px] text-base resize-none w-full ${errors.deskripsi ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-green-500'}`}
               />
               {errors.deskripsi && (
                 <p className="text-red-500 text-sm mt-2">{errors.deskripsi.message}</p>
+              )}
+              {descriptionLength > 10000 && (
+                <p className="text-red-500 text-sm mt-2">
+                  ⚠️ Deskripsi terlalu panjang! Maksimal 10000 karakter.
+                </p>
               )}
             </div>
 

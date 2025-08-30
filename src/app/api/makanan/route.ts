@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { namaMakanan, deskripsi, foto, harga, jenisPaketId } = await request.json()
+    const { namaMakanan, deskripsi, deskripsiEn, foto, harga, jenisPaketId } = await request.json()
 
     if (!namaMakanan || !deskripsi || !foto || !harga || !jenisPaketId) {
       return NextResponse.json(
@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
         data: {
           namaMakanan,
           deskripsi,
+          deskripsiEn: deskripsiEn || null,
           foto: fotoJson,
           harga,
           jenisPaketId

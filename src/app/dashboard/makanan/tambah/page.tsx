@@ -4,12 +4,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { translateText } from '@/lib/translate'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Utensils, Upload, X, Image as ImageIcon, Plus, Camera, ChevronDown, AlertCircle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Utensils, Upload, X, Image as ImageIcon, Plus, Camera, ChevronDown, AlertCircle, CheckCircle, Languages } from 'lucide-react'
 import Link from 'next/link'
 import { makananSchema, type MakananFormData } from '@/lib/validations'
 import { Toast } from '@/components/ui/toast'
@@ -24,6 +25,9 @@ export default function TambahMakananPage() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [descriptionLength, setDescriptionLength] = useState(0)
+  const [deskripsiEn, setDeskripsiEn] = useState('')
+  const [isTranslating, setIsTranslating] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isVisible: boolean }>({
     message: '',
     type: 'success',
@@ -37,11 +41,37 @@ export default function TambahMakananPage() {
     handleSubmit,
     control,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<MakananFormData>({
     resolver: zodResolver(makananSchema),
   })
+
+  // Watch the description field for character count
+  const watchedDescription = watch('deskripsi', '')
+
+  useEffect(() => {
+    // Update description length
+    setDescriptionLength(watchedDescription.length)
+  }, [watchedDescription])
+
+  const handleAutoTranslateDescription = async (text: string) => {
+    if (!text.trim()) {
+      setDeskripsiEn('')
+      return
+    }
+
+    setIsTranslating(true)
+    try {
+      const translated = await translateText(text, 'en')
+      setDeskripsiEn(translated)
+    } catch (error) {
+      console.error('Translation error:', error)
+    } finally {
+      setIsTranslating(false)
+    }
+  }
 
   useEffect(() => {
     // Fetch jenis paket list
@@ -151,6 +181,7 @@ export default function TambahMakananPage() {
         body: JSON.stringify({
           namaMakanan: data.namaMakanan,
           deskripsi: data.deskripsi,
+          deskripsiEn: deskripsiEn,
           foto: uploadedImages,
           harga: data.harga,
           jenisPaketId: data.jenisPaketId,
@@ -163,7 +194,7 @@ export default function TambahMakananPage() {
       }
 
       // Show success notification
-      showToast('✅ Menu berhasil disimpan!', 'success')
+      showToast('Menu berhasil disimpan!', 'success')
       
       // Wait a bit before redirecting
       setTimeout(() => {
@@ -303,19 +334,60 @@ export default function TambahMakananPage() {
 
             {/* Description - Full Width */}
             <div>
-              <Label htmlFor="deskripsi" className="text-sm font-semibold text-gray-700 mb-2 block">
-                Deskripsi Menu *
-              </Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="deskripsi" className="text-sm font-semibold text-gray-700">
+                  Deskripsi Menu *
+                </Label>
+                <span className={`text-xs font-medium ${
+                  descriptionLength > 10000 ? 'text-red-500' : 
+                  descriptionLength > 9000 ? 'text-orange-500' : 
+                  'text-gray-500'
+                }`}>
+                  {descriptionLength}/10000 karakter
+                </span>
+              </div>
               <Textarea
                 id="deskripsi"
                 {...register('deskripsi')}
-                placeholder="Deskripsikan menu makanan dengan detail..."
+                onChange={(e) => {
+                  register('deskripsi').onChange(e)
+                  // Auto-translate after user stops typing (debounced)
+                  clearTimeout((window as any).translateTimeout)
+                  ;(window as any).translateTimeout = setTimeout(() => {
+                    handleAutoTranslateDescription(e.target.value)
+                  }, 2000) // Wait 2 seconds after user stops typing
+                }}
+                placeholder="Deskripsikan menu makanan dengan detail... (minimal 10 karakter, maksimal 2000 karakter)"
                 className={`min-h-[240px] text-base resize-none w-full ${errors.deskripsi ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-green-500'}`}
               />
               {errors.deskripsi && (
                 <p className="text-red-500 text-sm mt-2">{errors.deskripsi.message}</p>
               )}
+              {descriptionLength > 10000 && (
+                <p className="text-red-500 text-sm mt-2">
+                  ⚠️ Deskripsi terlalu panjang! Maksimal 10000 karakter.
+                </p>
+              )}
             </div>
+
+            {/* English Description Preview */}
+            {deskripsiEn && (
+              <div>
+                <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                  Deskripsi (English) - Preview
+                  {isTranslating && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  )}
+                  <Languages className="h-4 w-4 text-blue-600" />
+                </Label>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800 whitespace-pre-line">{deskripsiEn}</p>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  Terjemahan otomatis dari bahasa Indonesia ke English
+                </p>
+              </div>
+            )}
 
             {/* Photo Upload Section */}
             <div className="space-y-6">
